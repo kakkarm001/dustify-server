@@ -137,7 +137,6 @@ public class Main {
                 value.setLng(locationObject.getDouble("longitude"));
 
                 JSONArray sensorValues = object.getJSONArray("sensordatavalues");
-                System.err.println("here");
 
                 boolean isPSensor = false;
                 for (int s = 0; s < sensorValues.length(); s++) {
@@ -154,8 +153,6 @@ public class Main {
                     }
                 }
 
-                System.err.println("TEST 2");
-
                 value.setTimestamp(object.getString("timestamp"));
 
                 results.add(value);
@@ -169,7 +166,8 @@ public class Main {
         filteredSensorValue = filterByLocationAndTime(results, new Location("requestLocation", latitude, longitude));
 
         if (filteredSensorValue != null) {
-            return filteredSensorValue.getP1() + "";
+            return "p1: " + filteredSensorValue.getP1() + " p2: " + filteredSensorValue.getP2() + " lat: " +
+                    filteredSensorValue.getLat() + " long: " + filteredSensorValue.getLng();
         } else {
             return "sensorvalue not found";
         }
@@ -179,10 +177,13 @@ public class Main {
         List<SensorValue> filteredList = new ArrayList<SensorValue>();
         Location closestLocation = searchClosestLocation(originalList, myLocation);
 
-        System.err.println("TEST 3");
+        System.err.println("closest location" + closestLocation.getLatitude());
+        System.err.println("TEST 3 + original list size" + originalList.size());
 
         for (SensorValue value : originalList) {
-            if (value.getLocation().equals(closestLocation)) {
+            if (value.getLocation().getLatitude()==closestLocation.getLatitude()
+                    && value.getLocation().getLongitude()==closestLocation.getLongitude()) {
+                System.err.println("original list filled");
                 filteredList.add(value);
             }
         }
@@ -192,7 +193,7 @@ public class Main {
     }
 
     public Location searchClosestLocation(List<SensorValue> originalList, Location myLocation) {
-        float closestDistance = 999F;
+        float closestDistance = 9999999999999F;
         Location closestLocation = null;
         for (SensorValue value : originalList) {
             if (value.getLocation().distanceTo(myLocation) < closestDistance) {
@@ -205,12 +206,17 @@ public class Main {
     }
 
     public SensorValue filterByTime(List<SensorValue> originalList) {
+        System.err.println("originallist size: " + originalList.size());
+
         Date closestDate = originalList.get(0).getTimestamp();
-        SensorValue filteredSensorValue = new SensorValue();
+        SensorValue filteredSensorValue = originalList.get(0);
 
         for (SensorValue value : originalList) {
-            if (closestDate.after(value.getTimestamp())) {
+            if (closestDate.before(value.getTimestamp())) {
+                System.err.println("filtered by time");
                 filteredSensorValue = value;
+            } else {
+                System.err.println("timefilter comparison: thistime:" + closestDate.toString() + "othertime "+ value.getTimestamp());
             }
         }
 
