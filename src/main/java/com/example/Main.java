@@ -125,7 +125,6 @@ public class Main {
 
         try {
             String allData = getHTML("http://api.luftdaten.info/static/v1/data.json");
-            System.err.println("this is not reached");
 
             JSONArray json = new JSONArray(allData);
 
@@ -142,26 +141,24 @@ public class Main {
                 for (int s = 0; s < sensorValues.length(); s++) {
                     JSONObject sensorValueObject = (JSONObject) sensorValues.get(s);
                     String valueType = sensorValueObject.getString("value_type");
-                    
-                    System.err.println("p1 and p2 iterated " + valueType);
-
 
                     if (valueType.equals("P1")) {
-                        System.err.println("p1 filled");
                         value.setP1(sensorValueObject.getDouble("value"));
                         isPSensor = true;
                     }
                     if (valueType.equals("P2")) {
-                        System.err.println("p2 filled");
                         value.setP2(sensorValueObject.getDouble("value"));
                         isPSensor = true;
                     }
                 }
 
                 value.setTimestamp(object.getString("timestamp"));
-                value.timestampString=object.getString("timestamp");
+                value.timestampString = object.getString("timestamp");
 
-                results.add(value);
+                if(isPSensor){
+                    results.add(value);
+                }
+
             }
 
         } catch (Exception e) {
@@ -173,7 +170,7 @@ public class Main {
 
         if (filteredSensorValue != null) {
             return "{\"p1\": " + filteredSensorValue.getP1() + ", \"p2\": " + filteredSensorValue.getP2() + ", \"lat\": " +
-                    filteredSensorValue.getLat() + ", \"lng\": " + filteredSensorValue.getLng() + ", \"timestamp\": " + "\"" + filteredSensorValue.timestampString+ "\""+"}";
+                    filteredSensorValue.getLat() + ", \"lng\": " + filteredSensorValue.getLng() + ", \"timestamp\": " + "\"" + filteredSensorValue.timestampString + "\"" + "}";
         } else {
             return "sensorvalue not found";
         }
@@ -183,13 +180,12 @@ public class Main {
         List<SensorValue> filteredList = new ArrayList<SensorValue>();
         Location closestLocation = searchClosestLocation(originalList, myLocation);
 
-        System.err.println("closest location" + closestLocation.getLatitude());
-        System.err.println("TEST 3 + original list size" + originalList.size());
+        System.err.println("closest location" + closestLocation.getLatitude() + "/" + closestLocation.getLongitude());
 
         for (SensorValue value : originalList) {
-            if (value.getLocation().getLatitude()==closestLocation.getLatitude()
-                    && value.getLocation().getLongitude()==closestLocation.getLongitude()) {
-                System.err.println("original list filled");
+            if (value.getLocation().getLatitude() == closestLocation.getLatitude()
+                    && value.getLocation().getLongitude() == closestLocation.getLongitude()) {
+                System.err.println("found value for closest location");
                 filteredList.add(value);
             }
         }
@@ -199,11 +195,12 @@ public class Main {
     }
 
     public Location searchClosestLocation(List<SensorValue> originalList, Location myLocation) {
-        float closestDistance = 9999999999999F;
+        double closestDistance = Double.MAX_VALUE;
         Location closestLocation = null;
         for (SensorValue value : originalList) {
             if (value.getLocation().distanceTo(myLocation) < closestDistance) {
-                closestLocation = new Location(value.getLocation());
+                closestDistance = value.getLocation().distanceTo(myLocation);
+                closestLocation = value.getLocation();
             }
 
         }
@@ -212,7 +209,7 @@ public class Main {
     }
 
     public SensorValue filterByTime(List<SensorValue> originalList) {
-        System.err.println("originallist size: " + originalList.size());
+        System.err.println("amount values found for this location : " + originalList.size());
 
         Date closestDate = originalList.get(0).getTimestamp();
         SensorValue filteredSensorValue = originalList.get(0);
@@ -222,7 +219,7 @@ public class Main {
                 System.err.println("filtered by time");
                 filteredSensorValue = value;
             } else {
-                System.err.println("timefilter comparison: thistime:" + closestDate.toString() + "othertime "+ value.timestampString);
+                System.err.println("timefilter comparison: thistime:" + closestDate.toString() + "othertime " + value.timestampString);
             }
         }
 
