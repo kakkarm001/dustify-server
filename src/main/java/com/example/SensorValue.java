@@ -12,6 +12,8 @@ public class SensorValue {
     private double p1;
     private double p2;
 
+    public String timestampString;
+
     public SensorValue() {
     }
 

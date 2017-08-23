@@ -116,7 +116,7 @@ public class Main {
     @PostMapping("/latestsensordata")
     @ResponseBody
     public String getFoosBySimplePath(@RequestParam("lat") Double latitude,
-                                      @RequestParam("long") Double longitude) {
+                                      @RequestParam("lng") Double longitude) {
 
         System.err.println("request started");
 
@@ -142,18 +142,24 @@ public class Main {
                 for (int s = 0; s < sensorValues.length(); s++) {
                     JSONObject sensorValueObject = (JSONObject) sensorValues.get(s);
                     String valueType = sensorValueObject.getString("value_type");
+                    
+                    System.err.println("p1 and p2 iterated " + valueType);
+
 
                     if (valueType.equals("P1")) {
+                        System.err.println("p1 filled");
                         value.setP1(sensorValueObject.getDouble("value"));
                         isPSensor = true;
                     }
                     if (valueType.equals("P2")) {
+                        System.err.println("p2 filled");
                         value.setP2(sensorValueObject.getDouble("value"));
                         isPSensor = true;
                     }
                 }
 
                 value.setTimestamp(object.getString("timestamp"));
+                value.timestampString=object.getString("timestamp");
 
                 results.add(value);
             }
@@ -166,8 +172,8 @@ public class Main {
         filteredSensorValue = filterByLocationAndTime(results, new Location("requestLocation", latitude, longitude));
 
         if (filteredSensorValue != null) {
-            return "p1: " + filteredSensorValue.getP1() + " p2: " + filteredSensorValue.getP2() + " lat: " +
-                    filteredSensorValue.getLat() + " long: " + filteredSensorValue.getLng();
+            return "{\"p1\": " + filteredSensorValue.getP1() + ", \"p2\": " + filteredSensorValue.getP2() + ", \"lat\": " +
+                    filteredSensorValue.getLat() + ", \"lng\": " + filteredSensorValue.getLng() + ", \"timestamp\": " + "\"" + filteredSensorValue.timestampString+ "\""+"}";
         } else {
             return "sensorvalue not found";
         }
@@ -216,7 +222,7 @@ public class Main {
                 System.err.println("filtered by time");
                 filteredSensorValue = value;
             } else {
-                System.err.println("timefilter comparison: thistime:" + closestDate.toString() + "othertime "+ value.getTimestamp());
+                System.err.println("timefilter comparison: thistime:" + closestDate.toString() + "othertime "+ value.timestampString);
             }
         }
 
