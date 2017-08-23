@@ -40,18 +40,17 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Controller
 @SpringBootApplication
 public class Main {
 
+    static final long ONE_MINUTE_IN_MILLIS = 60000;//millisecs
+    List<SensorValue> sensorValues = new ArrayList<SensorValue>();
+    Date lastUdpate = new Date(0);
     @Value("${spring.datasource.url}")
     private String dbUrl;
-
     @Autowired
     private DataSource dataSource;
 
@@ -118,55 +117,73 @@ public class Main {
     public String getFoosBySimplePath(@RequestParam("lat") Double latitude,
                                       @RequestParam("lng") Double longitude) {
 
-        System.err.println("request started");
+        System.err.println("Request started: " + latitude + "\\" + longitude);
 
-        List<SensorValue> results = new ArrayList<SensorValue>();
+
         SensorValue filteredSensorValue = null;
 
-        try {
-            String allData = getHTML("http://api.luftdaten.info/static/v1/data.json");
 
-            JSONArray json = new JSONArray(allData);
+        Calendar date = Calendar.getInstance();
+        long t = date.getTimeInMillis();
+        Date oneMinuteAgo = new Date(t - ONE_MINUTE_IN_MILLIS);
 
-            for (int i = 0; i < json.length(); i++) {
-                SensorValue value = new SensorValue();
-                JSONObject object = (JSONObject) json.get(i);
-                JSONObject locationObject = object.getJSONObject("location");
-                value.setLat(locationObject.getDouble("latitude"));
-                value.setLng(locationObject.getDouble("longitude"));
+        if (lastUdpate.before(oneMinuteAgo)) {
+            lastUdpate = new Date();
 
-                JSONArray sensorValues = object.getJSONArray("sensordatavalues");
 
-                boolean isPSensor = false;
-                for (int s = 0; s < sensorValues.length(); s++) {
-                    JSONObject sensorValueObject = (JSONObject) sensorValues.get(s);
-                    String valueType = sensorValueObject.getString("value_type");
+            try {
+                System.out.println("Loading data from luftdaten.info");
+                String allData = getHTML("http://api.luftdaten.info/static/v1/data.json");
 
-                    if (valueType.equals("P1")) {
-                        value.setP1(sensorValueObject.getDouble("value"));
-                        isPSensor = true;
+                JSONArray json = new JSONArray(allData);
+
+
+                sensorValues.clear();
+
+                for (int i = 0; i < json.length(); i++) {
+                    SensorValue value = new SensorValue();
+                    JSONObject object = (JSONObject) json.get(i);
+                    JSONObject locationObject = object.getJSONObject("location");
+                    value.setLat(locationObject.getDouble("latitude"));
+                    value.setLng(locationObject.getDouble("longitude"));
+
+                    JSONArray sensorValuesJSON = object.getJSONArray("sensordatavalues");
+
+                    boolean isPSensor = false;
+                    for (int s = 0; s < sensorValuesJSON.length(); s++) {
+                        JSONObject sensorValueObject = (JSONObject) sensorValuesJSON.get(s);
+                        String valueType = sensorValueObject.getString("value_type");
+
+                        if (valueType.equals("P1")) {
+                            value.setP1(sensorValueObject.getDouble("value"));
+                            isPSensor = true;
+                        }
+                        if (valueType.equals("P2")) {
+                            value.setP2(sensorValueObject.getDouble("value"));
+                            isPSensor = true;
+                        }
                     }
-                    if (valueType.equals("P2")) {
-                        value.setP2(sensorValueObject.getDouble("value"));
-                        isPSensor = true;
+
+                    value.setTimestamp(object.getString("timestamp"));
+                    value.timestampString = object.getString("timestamp");
+
+                    if (isPSensor) {
+                        sensorValues.add(value);
                     }
+
                 }
 
-                value.setTimestamp(object.getString("timestamp"));
-                value.timestampString = object.getString("timestamp");
-
-                if(isPSensor){
-                    results.add(value);
-                }
-
+            } catch (Exception e) {
+                System.err.println("exception " + e.toString());
+                e.printStackTrace();
             }
 
-        } catch (Exception e) {
-            System.err.println("exception " + e.toString());
-            e.printStackTrace();
+        } else {
+            System.out.println("Data provided from cache");
         }
 
-        filteredSensorValue = filterByLocationAndTime(results, new Location("requestLocation", latitude, longitude));
+
+        filteredSensorValue = filterByLocationAndTime(sensorValues, new Location("requestLocation", latitude, longitude));
 
         if (filteredSensorValue != null) {
             return "{\"p1\": " + filteredSensorValue.getP1() + ", \"p2\": " + filteredSensorValue.getP2() + ", \"lat\": " +
@@ -216,10 +233,7 @@ public class Main {
 
         for (SensorValue value : originalList) {
             if (closestDate.before(value.getTimestamp())) {
-                System.err.println("filtered by time");
                 filteredSensorValue = value;
-            } else {
-                System.err.println("timefilter comparison: thistime:" + closestDate.toString() + "othertime " + value.timestampString);
             }
         }
 
